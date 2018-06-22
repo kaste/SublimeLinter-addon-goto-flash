@@ -1,5 +1,11 @@
 {
+    // The scope/color of the highlight
     "scope": "markup.bold",
-    "style": "fill",
+
+    // The style of the highlight region. Uses the same names as
+    // SublimeLinter in its 'mark_style' setting.
+    "style": "outline",
+
+    // The duration of the highlight in seconds
     "duration": 0.8
 }
