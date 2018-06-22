@@ -3,7 +3,7 @@ import uuid
 import sublime
 import sublime_plugin
 
-from SublimeLinter.highlight_view import get_regions_keys
+from SublimeLinter.highlight_view import get_regions_keys, MARK_STYLES
 from SublimeLinter.lint import persist, queue
 
 
@@ -40,7 +40,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
 HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
 HIGHLIGHT_TIME = 0.8  # [sec]
 HIGHLIGHT_SCOPE = 'markup.bold'
-HIGHLIGHT_FLAGS = sublime.DRAW_NO_FILL
+HIGHLIGHT_FLAGS = MARK_STYLES['outline']
 RESURRECT_KEY_TMPL = 'sl-goto-flash-{}'
 
 
