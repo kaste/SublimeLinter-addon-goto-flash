@@ -34,7 +34,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
             State['cursor_position_pre'] = None
 
             if pre_cursor != cursor:
-                highlight_jump_position(view, cursor)
+                cursor_jumped(view, cursor)
 
 
 HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
@@ -44,16 +44,39 @@ HIGHLIGHT_FLAGS = MARK_STYLES['outline']
 RESURRECT_KEY_TMPL = 'sl-goto-flash-{}'
 
 
-def highlight_jump_position(view, point):
+def cursor_jumped(view, cursor):
     bid = view.buffer_id()
     touching_errors = [
         error
         for error in persist.errors[bid]
-        if error['region'].begin() == point
+        if error['region'].begin() == cursor
     ]
+
+    highlight_jump_position(view, touching_errors)
+    dehighlight_linter_errors(view, touching_errors)
+
+
+def highlight_jump_position(view, touching_errors):
+    widest_region = max(
+        (error['region'] for error in touching_errors),
+        key=lambda region: region.end(),
+    )
+
+    region_key = HIGHLIGHT_REGION_KEY.format(uuid.uuid4())
+    view.add_regions(
+        region_key, [widest_region], scope=HIGHLIGHT_SCOPE, flags=HIGHLIGHT_FLAGS
+    )
+
+    queue.debounce(
+        lambda: view.erase_regions(region_key),
+        delay=HIGHLIGHT_TIME,
+        key=region_key,
+    )
+
+
+def dehighlight_linter_errors(view, touching_errors):
     touching_error_uids = {error['uid'] for error in touching_errors}
 
-    # First dehighlight lint errors
     touching_regions = []
     for key in get_regions_keys(view):
         if '.Highlights.' not in key:
@@ -76,21 +99,4 @@ def highlight_jump_position(view, point):
         resurrect_regions,
         delay=HIGHLIGHT_TIME,
         key=RESURRECT_KEY_TMPL.format(view.id()),
-    )
-
-    # Now highlight the jump position
-    widest_region = max(
-        (error['region'] for error in touching_errors),
-        key=lambda region: region.end(),
-    )
-
-    region_key = HIGHLIGHT_REGION_KEY.format(uuid.uuid4())
-    view.add_regions(
-        region_key, [widest_region], scope=HIGHLIGHT_SCOPE, flags=HIGHLIGHT_FLAGS
-    )
-
-    queue.debounce(
-        lambda: view.erase_regions(region_key),
-        delay=HIGHLIGHT_TIME,
-        key=region_key,
     )
