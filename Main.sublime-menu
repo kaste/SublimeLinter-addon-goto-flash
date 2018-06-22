@@ -1,0 +1,29 @@
+[
+    {
+        "caption": "Preferences",
+        "id": "preferences",
+        "mnemonic": "n",
+        "children": [
+            {
+                "caption": "Package Settings",
+                "id": "package-settings",
+                "mnemonic": "P",
+                "children": [
+                    {
+                        "caption": "SublimeLinter-addon-goto-flash",
+                        "children": [
+                            {
+                                "caption": "Settings",
+                                "command": "edit_settings", "args":
+                                {
+                                    "base_file": "${packages}/SublimeLinter-addon-goto-flash/SublimeLinter-addon-goto-flash.sublime-settings",
+                                    "default": "// SublimeLinter-addon-goto-flash Settings - User\n{\n\t$0\n}\n"
+                                }
+                            },
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+]
