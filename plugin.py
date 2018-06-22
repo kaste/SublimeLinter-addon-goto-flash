@@ -47,7 +47,9 @@ RESURRECT_KEY_TMPL = 'sl-goto-flash-{}'
 def highlight_jump_position(view, point):
     bid = view.buffer_id()
     touching_errors = [
-        error for error in persist.errors[bid] if error['region'].contains(point)
+        error
+        for error in persist.errors[bid]
+        if error['region'].begin() == point
     ]
     touching_error_uids = {error['uid'] for error in touching_errors}
 
