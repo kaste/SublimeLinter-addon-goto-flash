@@ -7,6 +7,7 @@ from SublimeLinter.highlight_view import get_regions_keys, MARK_STYLES
 from SublimeLinter.lint import persist, queue
 
 
+HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
 State = {'cursor_position_pre': None}
 
 
@@ -52,10 +53,6 @@ def cursor_jumped(view, cursor):
     dehighlight_linter_errors(view, touching_errors, settings)
 
 
-HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
-RESURRECT_KEY_TMPL = 'sl-goto-flash-{}'
-
-
 def highlight_jump_position(view, touching_errors, settings):
     widest_region = max(
         (error['region'] for error in touching_errors),
@@ -96,7 +93,5 @@ def dehighlight_linter_errors(view, touching_errors, settings):
             view.add_regions(key, regions, scope=scope, flags=flags)
 
     queue.debounce(
-        resurrect_regions,
-        delay=settings.get('duration'),
-        key=RESURRECT_KEY_TMPL.format(view.id()),
+        resurrect_regions, delay=settings.get('duration'), key=uuid.uuid4()
     )
