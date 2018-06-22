@@ -37,13 +37,6 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 cursor_jumped(view, cursor)
 
 
-HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
-HIGHLIGHT_TIME = 0.8  # [sec]
-HIGHLIGHT_SCOPE = 'markup.bold'
-HIGHLIGHT_FLAGS = MARK_STYLES['outline']
-RESURRECT_KEY_TMPL = 'sl-goto-flash-{}'
-
-
 def cursor_jumped(view, cursor):
     bid = view.buffer_id()
     touching_errors = [
@@ -51,30 +44,37 @@ def cursor_jumped(view, cursor):
         for error in persist.errors[bid]
         if error['region'].begin() == cursor
     ]
+    settings = sublime.load_settings(
+        'SublimeLinter-addon-goto-flash.sublime-settings'
+    )
 
-    highlight_jump_position(view, touching_errors)
-    dehighlight_linter_errors(view, touching_errors)
+    highlight_jump_position(view, touching_errors, settings)
+    dehighlight_linter_errors(view, touching_errors, settings)
 
 
-def highlight_jump_position(view, touching_errors):
+HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
+RESURRECT_KEY_TMPL = 'sl-goto-flash-{}'
+
+
+def highlight_jump_position(view, touching_errors, settings):
     widest_region = max(
         (error['region'] for error in touching_errors),
         key=lambda region: region.end(),
     )
 
     region_key = HIGHLIGHT_REGION_KEY.format(uuid.uuid4())
-    view.add_regions(
-        region_key, [widest_region], scope=HIGHLIGHT_SCOPE, flags=HIGHLIGHT_FLAGS
-    )
+    scope = settings.get('scope')
+    flags = MARK_STYLES[settings.get('style')]
+    view.add_regions(region_key, [widest_region], scope=scope, flags=flags)
 
     queue.debounce(
         lambda: view.erase_regions(region_key),
-        delay=HIGHLIGHT_TIME,
+        delay=settings.get('duration'),
         key=region_key,
     )
 
 
-def dehighlight_linter_errors(view, touching_errors):
+def dehighlight_linter_errors(view, touching_errors, settings):
     touching_error_uids = {error['uid'] for error in touching_errors}
 
     touching_regions = []
@@ -97,6 +97,6 @@ def dehighlight_linter_errors(view, touching_errors):
 
     queue.debounce(
         resurrect_regions,
-        delay=HIGHLIGHT_TIME,
+        delay=settings.get('duration'),
         key=RESURRECT_KEY_TMPL.format(view.id()),
     )
