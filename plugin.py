@@ -7,8 +7,25 @@ from SublimeLinter.highlight_view import get_regions_keys, MARK_STYLES
 from SublimeLinter.lint import persist, queue
 
 
+MYPY = False
+if MYPY:
+    from typing import Optional, Set
+    from mypy_extensions import TypedDict
+
+    State_ = TypedDict(
+        'State_',
+        {
+            'cursor_position_pre': Optional[int],
+            'previous_quiet_views': Set[sublime.ViewId],
+        },
+    )
+
+
 HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
-State = {'cursor_position_pre': None}
+State = {
+    'cursor_position_pre': None,
+    'previous_quiet_views': set(),
+}  # type: State_
 
 
 class GotoCommandListener(sublime_plugin.EventListener):
