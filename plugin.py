@@ -3,7 +3,11 @@ import uuid
 import sublime
 import sublime_plugin
 
-from SublimeLinter.highlight_view import get_regions_keys, MARK_STYLES
+from SublimeLinter.highlight_view import (
+    get_regions_keys,
+    MARK_STYLES,
+    State as HighlightsState,
+)
 from SublimeLinter.lint import persist, queue
 
 
@@ -55,6 +59,16 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 cursor_jumped(view, cursor)
 
 
+class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
+    def on_modified_async(self, view):
+        window = view.window()
+        if window:
+            vid = view.id()
+            if vid in State['previous_quiet_views']:
+                window.run_command('sublime_linter_toggle_highlights')
+                State['previous_quiet_views'].discard(vid)
+
+
 def cursor_jumped(view, cursor):
     bid = view.buffer_id()
     touching_errors = [
@@ -66,8 +80,27 @@ def cursor_jumped(view, cursor):
         'SublimeLinter-addon-goto-flash.sublime-settings'
     )
 
-    highlight_jump_position(view, touching_errors, settings)
-    dehighlight_linter_errors(view, touching_errors, settings)
+    currently_quiet = view_is_quiet(view)
+    if currently_quiet and settings.get('jump_out_of_quiet'):
+        window = view.window()
+        if window:
+            window.run_command('sublime_linter_toggle_highlights')
+            State['previous_quiet_views'].add(view.id())
+
+    if currently_quiet or not settings.get('only_if_quiet'):
+        highlight_jump_position(view, touching_errors, settings)
+        dehighlight_linter_errors(view, touching_errors, settings)
+        if currently_quiet:
+            State['previous_quiet_views'].add(view.id())
+            mark_as_busy_quietly(view)
+
+
+def view_is_quiet(view):
+    return view.id() in HighlightsState['quiet_views']
+
+
+def mark_as_busy_quietly(view):
+    HighlightsState['quiet_views'].discard(view.id())
 
 
 def highlight_jump_position(view, touching_errors, settings):

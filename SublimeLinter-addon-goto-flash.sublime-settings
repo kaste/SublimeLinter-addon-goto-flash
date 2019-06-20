@@ -7,5 +7,12 @@
     "style": "outline",
 
     // The duration of the highlight in seconds
-    "duration": 0.8
+    "duration": 0.8,
+
+    // Only fancy highlight if the view is in quiet mode
+    "only_if_quiet": false,
+
+    // Temporarily jump out of the quiet mode when jumping. Immediately
+    // jump into quiet mode back again when editing.
+    "jump_out_of_quiet": true
 }
