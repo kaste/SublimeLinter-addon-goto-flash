@@ -8,5 +8,7 @@ The plugin works very well with SublimeLinter's 'quiet' mode. (Reminder: A 'quie
 
 By default it will temporarily jump out of the quiet mode while jumping around the errors using the goto command, and enter quiet mode again when you start editing again. (You can control this behavior via the `jump_out_of_quiet`setting.)
 
+Optionally, using the `only_if_quiet` setting, you can turn off the flashing if the view is *not* quiet.
+
 
 
