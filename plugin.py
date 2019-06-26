@@ -3,11 +3,7 @@ import uuid
 import sublime
 import sublime_plugin
 
-from SublimeLinter.highlight_view import (
-    get_regions_keys,
-    MARK_STYLES,
-    State as HighlightsState,
-)
+from SublimeLinter import highlight_view
 from SublimeLinter.lint import persist, queue
 
 
@@ -96,11 +92,11 @@ def cursor_jumped(view, cursor):
 
 
 def view_is_quiet(view):
-    return view.id() in HighlightsState['quiet_views']
+    return view.id() in highlight_view.State['quiet_views']
 
 
 def mark_as_busy_quietly(view):
-    HighlightsState['quiet_views'].discard(view.id())
+    highlight_view.State['quiet_views'].discard(view.id())
 
 
 def highlight_jump_position(view, touching_errors, settings):
@@ -111,7 +107,7 @@ def highlight_jump_position(view, touching_errors, settings):
 
     region_key = HIGHLIGHT_REGION_KEY.format(uuid.uuid4())
     scope = settings.get('scope')
-    flags = MARK_STYLES[settings.get('style')]
+    flags = highlight_view.MARK_STYLES[settings.get('style')]
     view.add_regions(region_key, [widest_region], scope=scope, flags=flags)
 
     queue.debounce(
@@ -125,7 +121,7 @@ def dehighlight_linter_errors(view, touching_errors, settings):
     touching_error_uids = {error['uid'] for error in touching_errors}
 
     touching_regions = []
-    for key in get_regions_keys(view):
+    for key in highlight_view.get_regions_keys(view):
         if '.Highlights.' not in key:
             continue
 
