@@ -65,19 +65,11 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
                 State['previous_quiet_views'].discard(vid)
 
 
-def get_errors_for_view(view):
-    try:
-        bid = view.buffer_id()
-        return persist.errors[bid]
-    except AttributeError:
-        filename = util.get_filename(view)
-        return persist.file_errors[filename]
-
-
 def cursor_jumped(view, cursor):
+    filename = util.get_filename(view)
     touching_errors = [
         error
-        for error in get_errors_for_view(view)
+        for error in persist.file_errors[filename]
         if error['region'].begin() == cursor
     ]
     settings = sublime.load_settings(
