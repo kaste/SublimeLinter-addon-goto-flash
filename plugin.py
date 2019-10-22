@@ -4,7 +4,7 @@ import sublime
 import sublime_plugin
 
 from SublimeLinter import highlight_view
-from SublimeLinter.lint import persist, queue
+from SublimeLinter.lint import persist, queue, util
 
 
 MYPY = False
@@ -65,11 +65,19 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
                 State['previous_quiet_views'].discard(vid)
 
 
+def get_errors_for_view(view):
+    try:
+        bid = view.buffer_id()
+        return persist.errors[bid]
+    except AttributeError:
+        filename = util.get_filename(view)
+        return persist.file_errors[filename]
+
+
 def cursor_jumped(view, cursor):
-    bid = view.buffer_id()
     touching_errors = [
         error
-        for error in persist.errors[bid]
+        for error in get_errors_for_view(view)
         if error['region'].begin() == cursor
     ]
     settings = sublime.load_settings(
