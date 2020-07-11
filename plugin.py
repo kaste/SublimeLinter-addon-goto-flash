@@ -16,7 +16,7 @@ if MYPY:
     State_ = TypedDict(
         'State_',
         {
-            'cursor_position_pre': Optional[int],
+            'cursor_position_pre': Optional[Tuple[sublime.ViewId, int]],
             'previous_quiet_views': Set[sublime.ViewId],
             'resurrect_tasks': List[Task],
             'await_load': Dict[sublime.ViewId, Callable[[], None]],
@@ -53,38 +53,47 @@ class GotoCommandListener(sublime_plugin.EventListener):
             callback()
 
     def on_text_command(self, view, command_name, args):
+        # type: (sublime.View, str, Dict) -> None
         if command_name in GOTO_COMMANDS:
             # `view` can be the panel
             # (for `sublime_linter_panel_next/previous`), so read
             # out the `active_view` here
-            view = view.window().active_view()
-            if not view:
+            window = view.window()
+            if not window:
                 return
-            cursor = view.sel()[0].begin()
-            State['cursor_position_pre'] = cursor
+            active_view = window.active_view()
+            if not active_view:
+                return
+            cursor = active_view.sel()[0].begin()
+            State['cursor_position_pre'] = (active_view.id(), cursor)
 
     def on_post_text_command(self, view, command_name, args):
+        # type: (sublime.View, str, Dict) -> None
         if command_name in GOTO_COMMANDS:
             pre_cursor = State['cursor_position_pre']
             if pre_cursor is None:
                 return
 
-            view = view.window().active_view()
-            if not view:
+            window = view.window()
+            if not window:
+                return
+            active_view = window.active_view()
+            if not active_view:
                 return
 
-            def eval():
-                cursor = view.sel()[0].begin()
+            def side_effect():
                 State['cursor_position_pre'] = None
-                if pre_cursor != cursor:
-                    cursor_jumped(view, cursor)
+                cursor = active_view.sel()[0].begin()  # type: ignore[union-attr]
+                if pre_cursor != (active_view.id(), cursor):  # type: ignore[union-attr]
+                    cursor_jumped(active_view, cursor)  # type: ignore[arg-type]
 
-            if view.is_loading():
-                State['await_load'][view.id()] = eval
+            if active_view.is_loading():
+                State['await_load'][active_view.id()] = side_effect
             else:
-                eval()
+                side_effect()
 
     def on_post_window_command(self, window, command_name, args):
+        # type: (sublime.Window, str, Dict) -> None
         if command_name == 'show_panel':
             if args.get('panel') == OUTPUT_PANEL:
                 active_view = window.active_view()
