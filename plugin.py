@@ -4,13 +4,12 @@ import sublime
 import sublime_plugin
 
 from SublimeLinter import highlight_view
-from SublimeLinter.lint import persist, queue, util
+from SublimeLinter.lint import persist, util
 
 
 MYPY = False
 if MYPY:
-    from typing import Optional, Set
-    from mypy_extensions import TypedDict
+    from typing import Optional, Set, TypedDict
 
     State_ = TypedDict(
         'State_',
@@ -28,18 +27,34 @@ State = {
 }  # type: State_
 
 
+GOTO_COMMANDS = {
+    'sublime_linter_goto_error',
+    'sublime_linter_panel_next',
+    'sublime_linter_panel_previous',
+}
+
+
 class GotoCommandListener(sublime_plugin.EventListener):
     def on_text_command(self, view, command_name, args):
-        if command_name == 'sublime_linter_goto_error':
+        if command_name in GOTO_COMMANDS:
+            # `view` can be the panel
+            # (for `sublime_linter_panel_next/previous`), so read
+            # out the `active_view` here
+            view = view.window().active_view()
+            if not view:
+                return
             cursor = view.sel()[0].begin()
             State['cursor_position_pre'] = cursor
 
     def on_post_text_command(self, view, command_name, args):
-        if command_name == 'sublime_linter_goto_error':
+        if command_name in GOTO_COMMANDS:
             pre_cursor = State['cursor_position_pre']
             if pre_cursor is None:
                 return
 
+            view = view.window().active_view()
+            if not view:
+                return
             cursor = view.sel()[0].begin()
             State['cursor_position_pre'] = None
 
@@ -58,12 +73,7 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
 
 
 def cursor_jumped(view, cursor):
-    filename = util.get_filename(view)
-    touching_errors = [
-        error
-        for error in persist.file_errors[filename]
-        if error['region'].begin() == cursor
-    ]
+    # type: (sublime.View, int) -> None
     settings = sublime.load_settings(
         'SublimeLinter-addon-goto-flash.sublime-settings'
     )
@@ -76,8 +86,15 @@ def cursor_jumped(view, cursor):
             State['previous_quiet_views'].add(view.id())
 
     if currently_quiet or not settings.get('only_if_quiet'):
-        highlight_jump_position(view, touching_errors, settings)
-        dehighlight_linter_errors(view, touching_errors, settings)
+        filename = util.get_filename(view)
+        touching_errors = [
+            error
+            for error in persist.file_errors[filename]
+            if error['region'].begin() == cursor
+        ]
+        if touching_errors:
+            highlight_jump_position(view, touching_errors, settings)
+            dehighlight_linter_errors(view, touching_errors, settings)
         if currently_quiet:
             State['previous_quiet_views'].add(view.id())
             mark_as_busy_quietly(view)
