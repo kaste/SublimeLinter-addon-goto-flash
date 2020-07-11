@@ -10,7 +10,7 @@ from SublimeLinter.lint import persist, util
 
 MYPY = False
 if MYPY:
-    from typing import Callable, List, Optional, Set, Tuple, TypedDict
+    from typing import Callable, Dict, List, Optional, Set, Tuple, TypedDict
 
     Task = Tuple[Callable, object, ...]  # type: ignore[misc]
     State_ = TypedDict(
@@ -19,6 +19,7 @@ if MYPY:
             'cursor_position_pre': Optional[int],
             'previous_quiet_views': Set[sublime.ViewId],
             'resurrect_tasks': List[Task],
+            'await_load': Dict[sublime.ViewId, Callable[[], None]],
         },
     )
 
@@ -28,6 +29,7 @@ State = {
     'cursor_position_pre': None,
     'previous_quiet_views': set(),
     'resurrect_tasks': [],
+    'await_load': {},
 }  # type: State_
 
 PANEL_NAME = "SublimeLinter"
@@ -41,6 +43,15 @@ GOTO_COMMANDS = {
 
 
 class GotoCommandListener(sublime_plugin.EventListener):
+    # `on_load` is a lie, the `sel()` is still not updated
+    def on_load_async(self, view):
+        try:
+            callback = State['await_load'][view.id()]
+        except KeyError:
+            ...
+        else:
+            callback()
+
     def on_text_command(self, view, command_name, args):
         if command_name in GOTO_COMMANDS:
             # `view` can be the panel
@@ -61,11 +72,17 @@ class GotoCommandListener(sublime_plugin.EventListener):
             view = view.window().active_view()
             if not view:
                 return
-            cursor = view.sel()[0].begin()
-            State['cursor_position_pre'] = None
 
-            if pre_cursor != cursor:
-                cursor_jumped(view, cursor)
+            def eval():
+                cursor = view.sel()[0].begin()
+                State['cursor_position_pre'] = None
+                if pre_cursor != cursor:
+                    cursor_jumped(view, cursor)
+
+            if view.is_loading():
+                State['await_load'][view.id()] = eval
+            else:
+                eval()
 
     def on_post_window_command(self, window, command_name, args):
         if command_name == 'show_panel':
