@@ -1,14 +1,26 @@
-# Hi :wave:!
+# Hi 👋!
 
 This is an UI addon for SublimeLinter.
 
-It highlights the error you jump to when using the Goto commands. Yep, it's more on the fancy side :man_juggling::woman_juggling:.
+It highlights the error you jump to when using the Goto commands. Well, okay. 🤹‍♂️🤹‍♀️.
 
-The plugin works very well with SublimeLinter's 'quiet' mode. (Reminder: A 'quiet' view doesn't show underlines (etc.) in the code, it still draws gutter marks, and the panel is also fully functional.) 
+Yeah. Read on. SublimeLinter has a some distraction free capabilities. There is a command
+to toggle the squiggles very quickly.  Maybe bind it like so:
 
-By default it will temporarily jump out of the quiet mode while jumping around the errors using the goto command, and enter quiet mode again when you start editing again. (You can control this behavior via the `jump_out_of_quiet`setting.)
+```json
+    // You can toggle all highlights super-fast
+    { "keys": ["ctrl+k", "ctrl+k"],
+      "command": "sublime_linter_toggle_highlights"
+    },
+```
 
-Optionally, using the `only_if_quiet` setting, you can turn off the flashing if the view is *not* quiet.
+There is also a setting "highlights.start_hidden" you can set to `true`.  If true
+all views start in distraction/squiggle free mode.
 
+Now, back to this plugin, it will make this experience a bit more awesome.
+
+Namely, it will temporarily jump out of the quiet mode while jumping around the errors
+using the goto command or when you have the error panel open. And automatically enter quiet
+mode again when you start editing again. (You can control this behavior via the `jump_out_of_quiet`setting.)
 
 
