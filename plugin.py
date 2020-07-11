@@ -26,6 +26,8 @@ State = {
     'previous_quiet_views': set(),
 }  # type: State_
 
+PANEL_NAME = "SublimeLinter"
+OUTPUT_PANEL = "output." + PANEL_NAME
 
 GOTO_COMMANDS = {
     'sublime_linter_goto_error',
@@ -60,6 +62,25 @@ class GotoCommandListener(sublime_plugin.EventListener):
 
             if pre_cursor != cursor:
                 cursor_jumped(view, cursor)
+
+    def on_post_window_command(self, window, command_name, args):
+        if command_name == 'show_panel':
+            if args.get('panel') == OUTPUT_PANEL:
+                active_view = window.active_view()
+                if not active_view:
+                    return
+                if not view_is_quiet(active_view):
+                    return
+
+                settings = sublime.load_settings(
+                    'SublimeLinter-addon-goto-flash.sublime-settings'
+                )
+                if not settings.get('jump_out_of_quiet'):
+                    return
+
+                window.run_command('sublime_linter_toggle_highlights')
+                State['previous_quiet_views'].add(active_view.id())
+                return
 
 
 class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
