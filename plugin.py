@@ -46,24 +46,6 @@ class GotoCommandListener(sublime_plugin.EventListener):
             if pre_cursor != cursor:
                 cursor_jumped(view, cursor)
 
-    def on_window_command(self, window, command_name, args):
-        if command_name == 'sublime_linter_goto_error':
-            view = window.active_view()
-            if not view:
-                return
-
-            self.on_text_command(view, command_name, args)
-            cursor = view.sel()[0].begin()
-            State['cursor_position_pre'] = cursor
-
-    def on_post_window_command(self, window, command_name, args):
-        if command_name == 'sublime_linter_goto_error':
-            view = window.active_view()
-            if not view:
-                return
-
-            self.on_text_command(view, command_name, args)
-
 
 class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
     def on_modified_async(self, view):
