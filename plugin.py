@@ -1,4 +1,5 @@
-import uuid
+from functools import partial
+import threading
 
 import sublime
 import sublime_plugin
@@ -9,13 +10,15 @@ from SublimeLinter.lint import persist, util
 
 MYPY = False
 if MYPY:
-    from typing import Optional, Set, TypedDict
+    from typing import Callable, List, Optional, Set, Tuple, TypedDict
 
+    Task = Tuple[Callable, object, ...]  # type: ignore[misc]
     State_ = TypedDict(
         'State_',
         {
             'cursor_position_pre': Optional[int],
             'previous_quiet_views': Set[sublime.ViewId],
+            'resurrect_tasks': List[Task],
         },
     )
 
@@ -24,6 +27,7 @@ HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
 State = {
     'cursor_position_pre': None,
     'previous_quiet_views': set(),
+    'resurrect_tasks': [],
 }  # type: State_
 
 PANEL_NAME = "SublimeLinter"
@@ -115,7 +119,6 @@ def cursor_jumped(view, cursor):
         ]
         if touching_errors:
             highlight_jump_position(view, touching_errors, settings)
-            dehighlight_linter_errors(view, touching_errors, settings)
         if currently_quiet:
             State['previous_quiet_views'].add(view.id())
             mark_as_busy_quietly(view)
@@ -130,22 +133,39 @@ def mark_as_busy_quietly(view):
 
 
 def highlight_jump_position(view, touching_errors, settings):
+    while State['resurrect_tasks']:
+        undo_task = State['resurrect_tasks'].pop(0)
+        throttled(*undo_task)()
+
     widest_region = max(
         (error['region'] for error in touching_errors),
         key=lambda region: region.end(),
     )
 
-    region_key = HIGHLIGHT_REGION_KEY.format(uuid.uuid4())
+    region_key = HIGHLIGHT_REGION_KEY.format('flash')
     scope = settings.get('scope')
     flags = highlight_view.MARK_STYLES[settings.get('style')]
     view.add_regions(region_key, [widest_region], scope=scope, flags=flags)
 
     sublime.set_timeout(
-        lambda: view.erase_regions(region_key), settings.get('duration') * 1000,
+        throttled(erase_regions, view, region_key),
+        settings.get('duration') * 1000,
+    )
+
+    undo_task = dehighlight_linter_errors(view, touching_errors, settings)
+    State['resurrect_tasks'].append(undo_task)
+    sublime.set_timeout(
+        throttled(*undo_task), settings.get('duration') * 1000,
     )
 
 
+def erase_regions(view, region_key):
+    # type: (sublime.View, str) -> None
+    view.erase_regions(region_key)
+
+
 def dehighlight_linter_errors(view, touching_errors, settings):
+    # type: (...) -> Task
     touching_error_uids = {error['uid'] for error in touching_errors}
 
     touching_regions = []
@@ -162,8 +182,29 @@ def dehighlight_linter_errors(view, touching_errors, settings):
     for key, _, _, _ in touching_regions:
         view.erase_regions(key)
 
-    def resurrect_regions():
-        for key, regions, scope, flags in touching_regions:
-            view.add_regions(key, regions, scope=scope, flags=flags)
+    return (resurrect_regions, view, touching_regions)
 
-    sublime.set_timeout(resurrect_regions, settings.get('duration') * 1000)
+
+def resurrect_regions(view, touching_regions):
+    for key, regions, scope, flags in touching_regions:
+        view.add_regions(key, regions, scope=scope, flags=flags)
+
+
+THROTTLED_CACHE = {}
+THROTTLED_LOCK = threading.Lock()
+
+
+def throttled(fn, *args, **kwargs):
+    # type: (...) -> Callable[[], None]
+    token = (fn,)
+    action = partial(fn, *args, **kwargs)
+    with THROTTLED_LOCK:
+        THROTTLED_CACHE[token] = action
+
+    def task():
+        with THROTTLED_LOCK:
+            ok = THROTTLED_CACHE[token] == action
+        if ok:
+            action()
+
+    return task
