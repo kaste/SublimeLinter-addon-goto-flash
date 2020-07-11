@@ -102,10 +102,8 @@ def highlight_jump_position(view, touching_errors, settings):
     flags = highlight_view.MARK_STYLES[settings.get('style')]
     view.add_regions(region_key, [widest_region], scope=scope, flags=flags)
 
-    queue.debounce(
-        lambda: view.erase_regions(region_key),
-        delay=settings.get('duration'),
-        key=region_key,
+    sublime.set_timeout(
+        lambda: view.erase_regions(region_key), settings.get('duration') * 1000,
     )
 
 
@@ -119,9 +117,9 @@ def dehighlight_linter_errors(view, touching_errors, settings):
 
         namespace, uid, scope, flags = key.split('|')
         if uid in touching_error_uids:
-            touching_regions.append(
-                (key, view.get_regions(key), scope, int(flags))
-            )
+            regions = view.get_regions(key)
+            if regions:
+                touching_regions.append((key, regions, scope, int(flags)))
 
     for key, _, _, _ in touching_regions:
         view.erase_regions(key)
@@ -130,6 +128,4 @@ def dehighlight_linter_errors(view, touching_errors, settings):
         for key, regions, scope, flags in touching_regions:
             view.add_regions(key, regions, scope=scope, flags=flags)
 
-    queue.debounce(
-        resurrect_regions, delay=settings.get('duration'), key=uuid.uuid4()
-    )
+    sublime.set_timeout(resurrect_regions, settings.get('duration') * 1000)
