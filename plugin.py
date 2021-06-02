@@ -200,13 +200,29 @@ def dehighlight_linter_errors(view, touching_errors, settings):
         if not isinstance(key, highlight_view.Squiggle):
             continue
 
+        if not key.visible():
+            continue
+
         if key.uid in touching_error_uids:
             regions = view.get_regions(key)
             if regions:
                 touching_regions.append((key, regions))
 
     for key, regions in touching_regions:
-        view.erase_regions(key)
+        if key.scope and getattr(key, "annotation", None):
+            annotations = {
+                "annotations": [key.annotation],
+                "annotation_color":
+                    view.style_for_scope(key.scope)["foreground"],
+            }
+        else:
+            annotations = {}
+        view.add_regions(key, regions, '', key.icon, key.flags, **annotations)
+
+        # Both `erase_view_region` and `draw_squiggle_invisible` would
+        # also erase the annotation.
+        # highlight_view.erase_view_region(view, key)
+        # highlight_view.draw_squiggle_invisible(view, key, regions)
 
     return (resurrect_regions, view, touching_regions)
 
