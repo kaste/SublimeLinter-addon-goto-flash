@@ -181,7 +181,8 @@ def highlight_jump_position(view, touching_errors, settings):
     undo_task = dehighlight_linter_errors(view, touching_errors, settings)
     State['resurrect_tasks'].append(undo_task)
     sublime.set_timeout(
-        throttled(*undo_task), settings.get('duration') * 1000,
+        throttled(*undo_task),
+        settings.get('duration') * 1000,
     )
 
 
