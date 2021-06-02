@@ -197,24 +197,23 @@ def dehighlight_linter_errors(view, touching_errors, settings):
 
     touching_regions = []
     for key in highlight_view.get_regions_keys(view):
-        if '.Highlights.' not in key:
+        if not isinstance(key, highlight_view.Squiggle):
             continue
 
-        namespace, uid, scope, flags = key.split('|')
-        if uid in touching_error_uids:
+        if key.uid in touching_error_uids:
             regions = view.get_regions(key)
             if regions:
-                touching_regions.append((key, regions, scope, int(flags)))
+                touching_regions.append((key, regions))
 
-    for key, _, _, _ in touching_regions:
+    for key, regions in touching_regions:
         view.erase_regions(key)
 
     return (resurrect_regions, view, touching_regions)
 
 
 def resurrect_regions(view, touching_regions):
-    for key, regions, scope, flags in touching_regions:
-        view.add_regions(key, regions, scope=scope, flags=flags)
+    for key, regions in touching_regions:
+        highlight_view.redraw_squiggle(view, key, regions)
 
 
 THROTTLED_CACHE = {}
