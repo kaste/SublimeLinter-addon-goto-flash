@@ -7,7 +7,7 @@ It highlights the error you jump to when using the Goto commands. Well, okay. ðŸ
 Yeah. Read on. SublimeLinter has a some distraction free capabilities. There is a command
 to toggle the squiggles very quickly.  Maybe bind it like so:
 
-```json
+```javascript
     // You can toggle all highlights super-fast
     { "keys": ["ctrl+k", "ctrl+k"],
       "command": "sublime_linter_toggle_highlights"
