@@ -21,6 +21,6 @@ Now, back to this plugin, it will make this experience a bit more awesome.
 
 Namely, it will temporarily jump out of the quiet mode while jumping around the errors
 using the goto command or when you have the error panel open. And automatically enter quiet
-mode again when you start editing again. (You can control this behavior via the `jump_out_of_quiet`setting.)
+mode again when you start editing again. (You can control this behavior via the `jump_out_of_quiet` setting.)
 
 
