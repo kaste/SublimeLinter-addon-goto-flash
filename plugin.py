@@ -7,6 +7,11 @@ import sublime_plugin
 from SublimeLinter import highlight_view
 from SublimeLinter.lint import persist, util
 
+try:
+    from SublimeLinter.lint.util import canonical_filename
+except ImportError:
+    canonical_filename = util.get_filename  # type: ignore[attr-defined]
+
 
 MYPY = False
 if MYPY:
@@ -137,7 +142,7 @@ def cursor_jumped(view, cursor):
             State['previous_quiet_views'].add(view.id())
 
     if currently_quiet or not settings.get('only_if_quiet'):
-        filename = util.get_filename(view)
+        filename = canonical_filename(view)
         touching_errors = [
             error
             for error in persist.file_errors[filename]
