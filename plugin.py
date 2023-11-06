@@ -113,7 +113,9 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 if not settings.get('jump_out_of_quiet'):
                     return
 
-                window.run_command('sublime_linter_toggle_highlights')
+                window.run_command('sublime_linter_toggle_highlights', {
+                    "what": toggle_mode()
+                })
                 State['previous_quiet_views'].add(active_view.id())
                 return
 
@@ -124,7 +126,9 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
         if window:
             vid = view.id()
             if vid in State['previous_quiet_views']:
-                window.run_command('sublime_linter_toggle_highlights')
+                window.run_command('sublime_linter_toggle_highlights', {
+                    "what": toggle_mode()
+                })
                 State['previous_quiet_views'].discard(vid)
 
 
@@ -138,7 +142,9 @@ def cursor_jumped(view, cursor):
     if currently_quiet and settings.get('jump_out_of_quiet'):
         window = view.window()
         if window:
-            window.run_command('sublime_linter_toggle_highlights')
+            window.run_command('sublime_linter_toggle_highlights', {
+                "what": toggle_mode()
+            })
             State['previous_quiet_views'].add(view.id())
 
     if currently_quiet or not settings.get('only_if_quiet'):
@@ -155,12 +161,26 @@ def cursor_jumped(view, cursor):
             mark_as_busy_quietly(view)
 
 
+def toggle_mode():
+    # type: () -> List[str]
+    start_hidden = persist.settings.get('highlights.start_hidden') or []
+    if start_hidden is True:
+        return ["phantoms", "squiggles"]
+    return start_hidden
+
+
 def view_is_quiet(view):
-    return view.id() in highlight_view.State['quiet_views']
+    vid = view.id()
+    return (
+        vid in highlight_view.State['quiet_views']
+        or vid in highlight_view.State['views_without_phantoms']
+    )
 
 
 def mark_as_busy_quietly(view):
-    highlight_view.State['quiet_views'].discard(view.id())
+    vid = view.id()
+    highlight_view.State['quiet_views'].discard(vid)
+    highlight_view.State['views_without_phantoms'].discard(vid)
 
 
 def highlight_jump_position(view, touching_errors, settings):

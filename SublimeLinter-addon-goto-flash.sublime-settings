@@ -13,6 +13,6 @@
     "only_if_quiet": false,
 
     // Temporarily jump out of the quiet mode when jumping. Immediately
-    // jump into quiet mode back again when editing.
+    // jump back into quiet mode when editing again.
     "jump_out_of_quiet": true
 }
