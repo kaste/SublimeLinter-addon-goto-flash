@@ -88,9 +88,9 @@ class GotoCommandListener(sublime_plugin.EventListener):
 
             def side_effect():
                 State['cursor_position_pre'] = None
-                cursor = active_view.sel()[0].begin()  # type: ignore[union-attr]
-                if pre_cursor != (active_view.id(), cursor):  # type: ignore[union-attr]
-                    cursor_jumped(active_view, cursor)  # type: ignore[arg-type]
+                cursor = active_view.sel()[0].begin()
+                if pre_cursor != (active_view.id(), cursor):
+                    cursor_jumped(active_view, cursor)
 
             if active_view.is_loading():
                 State['await_load'][active_view.id()] = side_effect
