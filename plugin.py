@@ -98,9 +98,9 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 side_effect()
 
     def on_post_window_command(self, window, command_name, args):
-        # type: (sublime.Window, str, Dict) -> None
+        # type: (sublime.Window, str, Optional[Dict]) -> None
         if command_name == 'show_panel':
-            if args.get('panel') == OUTPUT_PANEL:
+            if args and args.get('panel') == OUTPUT_PANEL:
                 active_view = window.active_view()
                 if not active_view:
                     return
