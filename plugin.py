@@ -113,11 +113,12 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 if not settings.get('jump_out_of_quiet'):
                     return
 
-                window.run_command('sublime_linter_toggle_highlights', {
-                    "what": toggle_mode()
-                })
-                State['previous_quiet_views'].add(active_view.id())
-                return
+                what = toggle_squiggles()
+                if what:
+                    window.run_command('sublime_linter_toggle_highlights', {
+                        "what": what
+                    })
+                    State['previous_quiet_views'].add(active_view.id())
 
 
 class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
@@ -125,9 +126,10 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
         window = view.window()
         if window:
             vid = view.id()
-            if vid in State['previous_quiet_views']:
+            what = toggle_squiggles()
+            if vid in State['previous_quiet_views'] and what:
                 window.run_command('sublime_linter_toggle_highlights', {
-                    "what": toggle_mode()
+                    "what": what
                 })
                 State['previous_quiet_views'].discard(vid)
 
@@ -141,9 +143,10 @@ def cursor_jumped(view, cursor):
     currently_quiet = view_is_quiet(view)
     if currently_quiet and settings.get('jump_out_of_quiet'):
         window = view.window()
-        if window:
+        what = toggle_squiggles()
+        if window and what:
             window.run_command('sublime_linter_toggle_highlights', {
-                "what": toggle_mode()
+                "what": what
             })
             State['previous_quiet_views'].add(view.id())
 
@@ -167,6 +170,12 @@ def toggle_mode():
     if start_hidden is True:
         return ["phantoms", "squiggles"]
     return start_hidden
+
+
+def toggle_squiggles():
+    # type: () -> List[str]
+    modes = toggle_mode()
+    return ["squiggles"] if "squiggles" in modes else []
 
 
 def view_is_quiet(view):
