@@ -24,6 +24,7 @@ if MYPY:
             'cursor_position_pre': Optional[Tuple[sublime.ViewId, int]],
             'temporary_squiggles_after_jumping': Set[sublime.ViewId],
             'temporary_squiggles_after_panel': Set[sublime.ViewId],
+            'just_drawn_a_phantom': Set[sublime.ViewId],
             'resurrect_tasks': List[Task],
             'await_load': Dict[sublime.ViewId, Callable[[], None]],
         },
@@ -35,6 +36,7 @@ State = {
     'cursor_position_pre': None,
     'temporary_squiggles_after_jumping': set(),
     'temporary_squiggles_after_panel': set(),
+    'just_drawn_a_phantom': set(),
     'resurrect_tasks': [],
     'await_load': {},
 }  # type: State_
@@ -106,6 +108,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
             if not active_view:
                 return
             vid = active_view.id()
+            State["just_drawn_a_phantom"].discard(vid)
             State['temporary_squiggles_after_jumping'].discard(vid)
             State['temporary_squiggles_after_panel'].discard(vid)
 
@@ -148,12 +151,15 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
         window = view.window()
         if window:
             vid = view.id()
-            what = toggle_squiggles()
-            if vid in State['temporary_squiggles_after_jumping'] and what:
+            if (
+                (vid in State['temporary_squiggles_after_jumping'] and toggle_squiggles())
+                or vid in State["just_drawn_a_phantom"]
+            ):
                 window.run_command('sublime_linter_toggle_highlights', {
-                    "what": what
+                    "what": toggle_mode()
                 })
                 State['temporary_squiggles_after_jumping'].discard(vid)
+                State['just_drawn_a_phantom'].discard(vid)
 
 
 def cursor_jumped(view, cursor):
@@ -172,13 +178,33 @@ def cursor_jumped(view, cursor):
             })
             State['temporary_squiggles_after_jumping'].add(view.id())
 
-    if currently_quiet or not settings.get('only_if_quiet'):
+    if (
+        (view_has_no_phantoms_drawn(view) or view.id() in State["just_drawn_a_phantom"])
+        and not error_panel_is_visible(view)
+        and settings.get('jump_out_of_quiet')
+    ):
         filename = canonical_filename(view)
         touching_errors = [
             error
             for error in persist.file_errors[filename]
             if error['region'].begin() == cursor
         ]
+        phantoms = highlight_view.prepare_phantoms(view, touching_errors)
+        if phantoms:
+            highlight_view.update_phantoms(view, phantoms)
+            State["just_drawn_a_phantom"].add(view.id())
+            highlight_view.State['views_without_phantoms'].discard(view.id())
+
+    if currently_quiet or not settings.get('only_if_quiet'):
+        try:
+            touching_errors
+        except NameError:
+            filename = canonical_filename(view)
+            touching_errors = [
+                error
+                for error in persist.file_errors[filename]
+                if error['region'].begin() == cursor
+            ]
         if touching_errors:
             highlight_jump_position(view, touching_errors, settings)
 
@@ -198,11 +224,18 @@ def toggle_squiggles():
 
 
 def view_is_quiet(view):
-    vid = view.id()
-    return (
-        vid in highlight_view.State['quiet_views']
-        or vid in highlight_view.State['views_without_phantoms']
-    )
+    return view.id() in highlight_view.State['quiet_views']
+
+
+def view_has_no_phantoms_drawn(view):
+    return view.id() in highlight_view.State['views_without_phantoms']
+
+
+def error_panel_is_visible(view):
+    window = view.window()
+    if not window:
+        return False
+    return window.active_panel() == "output.SublimeLinter"
 
 
 def highlight_jump_position(view, touching_errors, settings):
