@@ -159,9 +159,6 @@ def cursor_jumped(view, cursor):
         ]
         if touching_errors:
             highlight_jump_position(view, touching_errors, settings)
-        if currently_quiet:
-            State['previous_quiet_views'].add(view.id())
-            mark_as_busy_quietly(view)
 
 
 def toggle_mode():
@@ -184,12 +181,6 @@ def view_is_quiet(view):
         vid in highlight_view.State['quiet_views']
         or vid in highlight_view.State['views_without_phantoms']
     )
-
-
-def mark_as_busy_quietly(view):
-    vid = view.id()
-    highlight_view.State['quiet_views'].discard(vid)
-    highlight_view.State['views_without_phantoms'].discard(vid)
 
 
 def highlight_jump_position(view, touching_errors, settings):
