@@ -97,7 +97,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
             else:
                 side_effect()
 
-    def on_post_window_command(self, window, command_name, args):
+    def on_window_command(self, window, command_name, args):
         # type: (sublime.Window, str, Optional[Dict]) -> None
         if command_name == 'sublime_linter_toggle_highlights':
             active_view = window.active_view()
@@ -107,7 +107,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
             State['previous_quiet_views'].discard(vid)
 
         elif command_name == 'hide_panel':
-            if args and args.get('panel') == OUTPUT_PANEL:
+            if window.active_panel() == OUTPUT_PANEL:
                 active_view = window.active_view()
                 if not active_view:
                     return
