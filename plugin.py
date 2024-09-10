@@ -129,7 +129,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 active_view = window.active_view()
                 if not active_view:
                     return
-                if not view_is_quiet(active_view):
+                if not view_has_no_squiggles_drawn(active_view):
                     return
 
                 settings = sublime.load_settings(
@@ -166,7 +166,7 @@ def cursor_jumped(view, cursor):
         'SublimeLinter-addon-goto-flash.sublime-settings'
     )
 
-    currently_quiet = view_is_quiet(view)
+    currently_quiet = view_has_no_squiggles_drawn(view)
     if currently_quiet and settings.get('jump_out_of_quiet'):
         window = view.window()
         what = toggle_squiggles()
@@ -221,7 +221,7 @@ def toggle_squiggles():
     return ["squiggles"] if "squiggles" in modes else []
 
 
-def view_is_quiet(view):
+def view_has_no_squiggles_drawn(view):
     return view.id() in highlight_view.State['quiet_views']
 
 
