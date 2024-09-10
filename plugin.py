@@ -23,6 +23,7 @@ if MYPY:
         {
             'cursor_position_pre': Optional[Tuple[sublime.ViewId, int]],
             'previous_quiet_views': Set[sublime.ViewId],
+            'temporary_squiggles_after_panel': Set[sublime.ViewId],
             'resurrect_tasks': List[Task],
             'await_load': Dict[sublime.ViewId, Callable[[], None]],
         },
@@ -33,6 +34,7 @@ HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
 State = {
     'cursor_position_pre': None,
     'previous_quiet_views': set(),
+    'temporary_squiggles_after_panel': set(),
     'resurrect_tasks': [],
     'await_load': {},
 }  # type: State_
@@ -105,6 +107,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 return
             vid = active_view.id()
             State['previous_quiet_views'].discard(vid)
+            State['temporary_squiggles_after_panel'].discard(vid)
 
         elif command_name == 'hide_panel':
             if window.active_panel() == OUTPUT_PANEL:
@@ -113,7 +116,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
                     return
 
                 vid = active_view.id()
-                if vid in State['previous_quiet_views']:
+                if vid in State['temporary_squiggles_after_panel']:
                     window.run_command('sublime_linter_toggle_highlights', {
                         "what": toggle_squiggles()
                     })
@@ -137,7 +140,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
                     window.run_command('sublime_linter_toggle_highlights', {
                         "what": what
                     })
-                    State['previous_quiet_views'].add(active_view.id())
+                    State['temporary_squiggles_after_panel'].add(active_view.id())
 
 
 class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
