@@ -22,7 +22,7 @@ if MYPY:
         'State_',
         {
             'cursor_position_pre': Optional[Tuple[sublime.ViewId, int]],
-            'previous_quiet_views': Set[sublime.ViewId],
+            'temporary_squiggles_after_jumping': Set[sublime.ViewId],
             'temporary_squiggles_after_panel': Set[sublime.ViewId],
             'resurrect_tasks': List[Task],
             'await_load': Dict[sublime.ViewId, Callable[[], None]],
@@ -33,7 +33,7 @@ if MYPY:
 HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
 State = {
     'cursor_position_pre': None,
-    'previous_quiet_views': set(),
+    'temporary_squiggles_after_jumping': set(),
     'temporary_squiggles_after_panel': set(),
     'resurrect_tasks': [],
     'await_load': {},
@@ -106,7 +106,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
             if not active_view:
                 return
             vid = active_view.id()
-            State['previous_quiet_views'].discard(vid)
+            State['temporary_squiggles_after_jumping'].discard(vid)
             State['temporary_squiggles_after_panel'].discard(vid)
 
         elif command_name == 'hide_panel':
@@ -149,11 +149,11 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
         if window:
             vid = view.id()
             what = toggle_squiggles()
-            if vid in State['previous_quiet_views'] and what:
+            if vid in State['temporary_squiggles_after_jumping'] and what:
                 window.run_command('sublime_linter_toggle_highlights', {
                     "what": what
                 })
-                State['previous_quiet_views'].discard(vid)
+                State['temporary_squiggles_after_jumping'].discard(vid)
 
 
 def cursor_jumped(view, cursor):
@@ -170,7 +170,7 @@ def cursor_jumped(view, cursor):
             window.run_command('sublime_linter_toggle_highlights', {
                 "what": what
             })
-            State['previous_quiet_views'].add(view.id())
+            State['temporary_squiggles_after_jumping'].add(view.id())
 
     if currently_quiet or not settings.get('only_if_quiet'):
         filename = canonical_filename(view)
