@@ -158,8 +158,6 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
                 window.run_command('sublime_linter_toggle_highlights', {
                     "what": toggle_mode()
                 })
-                State['temporary_squiggles_after_jumping'].discard(vid)
-                State['just_drawn_a_phantom'].discard(vid)
 
 
 def cursor_jumped(view, cursor):
