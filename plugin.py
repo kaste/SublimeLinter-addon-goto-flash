@@ -1,3 +1,4 @@
+from __future__ import annotations
 from functools import partial
 import threading
 
@@ -102,21 +103,45 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 side_effect()
 
     def on_window_command(self, window, command_name, args):
-        # type: (sublime.Window, str, Optional[Dict]) -> None
+        # type: (sublime.Window, str, Optional[Dict]) -> tuple[str, dict | None] | None
         if command_name == 'sublime_linter_toggle_highlights':
             active_view = window.active_view()
             if not active_view:
-                return
+                return None
             vid = active_view.id()
-            State["just_drawn_a_phantom"].discard(vid)
-            State['temporary_squiggles_after_jumping'].discard(vid)
-            State['temporary_squiggles_after_panel'].discard(vid)
+            next_args = args or {}
+            what = next_args.get("what") or ["phantoms", "squiggles"]
+            # Assume the user has only one keybinding set up and intents to
+            # undo what *we* did.
+            # E.g. the user configured to flip the squiggles. Undraw a possible
+            # temporary phantom.  Refer our `on_modified_async` below.
+            next_what = set(what)
+            if (
+                vid in State['temporary_squiggles_after_jumping']
+                or vid in State['temporary_squiggles_after_panel']
+            ):
+                State['temporary_squiggles_after_jumping'].discard(vid)
+                State['temporary_squiggles_after_panel'].discard(vid)
+                highlight_view.State['quiet_views'].discard(vid)
+                next_what.add("squiggles")
+
+            if (
+                vid in State['just_drawn_a_phantom']
+            ):
+                State["just_drawn_a_phantom"].discard(vid)
+                highlight_view.State['views_without_phantoms'].discard(vid)
+                next_what.add("phantoms")
+
+            if next_what != set(what):
+                next_args["what"] = list(next_what)
+                return command_name, next_args
+            return None
 
         elif command_name == 'hide_panel':
             if window.active_panel() == OUTPUT_PANEL:
                 active_view = window.active_view()
                 if not active_view:
-                    return
+                    return None
 
                 vid = active_view.id()
                 if vid in State['temporary_squiggles_after_panel']:
@@ -128,20 +153,22 @@ class GotoCommandListener(sublime_plugin.EventListener):
             if args and args.get('panel') == OUTPUT_PANEL:
                 active_view = window.active_view()
                 if not active_view:
-                    return
+                    return None
                 if not view_has_no_squiggles_drawn(active_view):
-                    return
+                    return None
 
                 settings = sublime.load_settings(
                     'SublimeLinter-addon-goto-flash.sublime-settings'
                 )
                 if not settings.get('jump_out_of_quiet'):
-                    return
+                    return None
 
                 window.run_command('sublime_linter_toggle_highlights', {
                     "what": ["squiggles"]
                 })
                 State['temporary_squiggles_after_panel'].add(active_view.id())
+
+        return None
 
 
 class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
