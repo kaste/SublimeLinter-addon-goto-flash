@@ -151,12 +151,14 @@ class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
         window = view.window()
         if window:
             vid = view.id()
-            if (
-                (vid in State['temporary_squiggles_after_jumping'] and toggle_squiggles())
-                or vid in State["just_drawn_a_phantom"]
-            ):
+            what = []
+            if vid in State['temporary_squiggles_after_jumping']:
+                what += ["squiggles"]
+            if vid in State["just_drawn_a_phantom"]:
+                what += ["phantoms"]
+            if what:
                 window.run_command('sublime_linter_toggle_highlights', {
-                    "what": toggle_mode()
+                    "what": what
                 })
 
 
