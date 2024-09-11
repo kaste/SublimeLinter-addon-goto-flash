@@ -121,7 +121,7 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 vid = active_view.id()
                 if vid in State['temporary_squiggles_after_panel']:
                     window.run_command('sublime_linter_toggle_highlights', {
-                        "what": toggle_squiggles()
+                        "what": ["squiggles"]
                     })
 
         elif command_name == 'show_panel':
@@ -138,12 +138,10 @@ class GotoCommandListener(sublime_plugin.EventListener):
                 if not settings.get('jump_out_of_quiet'):
                     return
 
-                what = toggle_squiggles()
-                if what:
-                    window.run_command('sublime_linter_toggle_highlights', {
-                        "what": what
-                    })
-                    State['temporary_squiggles_after_panel'].add(active_view.id())
+                window.run_command('sublime_linter_toggle_highlights', {
+                    "what": ["squiggles"]
+                })
+                State['temporary_squiggles_after_panel'].add(active_view.id())
 
 
 class JumpIntoQuietModeAgain(sublime_plugin.EventListener):
@@ -171,10 +169,9 @@ def cursor_jumped(view, cursor):
     currently_quiet = view_has_no_squiggles_drawn(view)
     if currently_quiet and settings.get('jump_out_of_quiet'):
         window = view.window()
-        what = toggle_squiggles()
-        if window and what:
+        if window:
             window.run_command('sublime_linter_toggle_highlights', {
-                "what": what
+                "what": ["squiggles"]
             })
             State['temporary_squiggles_after_jumping'].add(view.id())
 
@@ -207,20 +204,6 @@ def cursor_jumped(view, cursor):
             ]
         if touching_errors:
             highlight_jump_position(view, touching_errors, settings)
-
-
-def toggle_mode():
-    # type: () -> List[str]
-    start_hidden = persist.settings.get('highlights.start_hidden') or []
-    if start_hidden is True:
-        return ["phantoms", "squiggles"]
-    return start_hidden
-
-
-def toggle_squiggles():
-    # type: () -> List[str]
-    modes = toggle_mode()
-    return ["squiggles"] if "squiggles" in modes else []
 
 
 def view_has_no_squiggles_drawn(view):
