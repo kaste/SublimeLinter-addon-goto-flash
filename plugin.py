@@ -318,6 +318,10 @@ def dehighlight_linter_errors(view, touching_errors, settings):
 
 
 def resurrect_regions(view, touching_regions):
+    try:
+        State['resurrect_tasks'].remove((resurrect_regions, view, touching_regions))
+    except ValueError:
+        pass
     for key, regions in touching_regions:
         highlight_view.redraw_squiggle(view, key, regions)
 
