@@ -1,6 +1,5 @@
 from __future__ import annotations
 from functools import partial
-import threading
 
 import sublime
 import sublime_plugin
@@ -16,9 +15,9 @@ except ImportError:
 
 MYPY = False
 if MYPY:
-    from typing import Callable, Dict, List, Optional, Set, Tuple, TypedDict
+    from typing import Callable, Dict, Optional, Set, Tuple, TypedDict
 
-    Task = Tuple[Callable, object, ...]  # type: ignore[misc]
+    Task = Callable
     State_ = TypedDict(
         'State_',
         {
@@ -26,19 +25,19 @@ if MYPY:
             'temporary_squiggles_after_jumping': Set[sublime.ViewId],
             'temporary_squiggles_after_panel': Set[sublime.ViewId],
             'just_drawn_a_phantom': Set[sublime.ViewId],
-            'resurrect_tasks': List[Task],
+            'resurrect_tasks': Dict[sublime.View, Task],
             'await_load': Dict[sublime.ViewId, Callable[[], None]],
         },
     )
 
 
-HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.{}'
+HIGHLIGHT_REGION_KEY = 'SL.flash_jump_position.flash'
 State = {
     'cursor_position_pre': None,
     'temporary_squiggles_after_jumping': set(),
     'temporary_squiggles_after_panel': set(),
     'just_drawn_a_phantom': set(),
-    'resurrect_tasks': [],
+    'resurrect_tasks': {},
     'await_load': {},
 }  # type: State_
 
@@ -248,41 +247,38 @@ def error_panel_is_visible(view):
     return window.active_panel() == "output.SublimeLinter"
 
 
-def highlight_jump_position(view, touching_errors, settings):
-    while State['resurrect_tasks']:
-        undo_task = State['resurrect_tasks'].pop(0)
-        throttled(*undo_task)()
+def highlight_jump_position(
+    view: sublime.View, touching_errors: list[persist.LintError], settings
+) -> None:
+    undo_highlight_jump_position(view)
 
     widest_region = max(
         (error['region'] for error in touching_errors),
         key=lambda region: region.end(),
     )
 
-    region_key = HIGHLIGHT_REGION_KEY.format('flash')
+    region_key = HIGHLIGHT_REGION_KEY
     scope = settings.get('scope')
     flags = highlight_view.MARK_STYLES[settings.get('style')]
     view.add_regions(region_key, [widest_region], scope=scope, flags=flags)
 
+    undo_task = dehighlight_linter_errors(view, touching_errors)
+    State['resurrect_tasks'][view] = undo_task
     sublime.set_timeout(
-        throttled(erase_regions, view, region_key),
-        settings.get('duration') * 1000,
-    )
-
-    undo_task = dehighlight_linter_errors(view, touching_errors, settings)
-    State['resurrect_tasks'].append(undo_task)
-    sublime.set_timeout(
-        throttled(*undo_task),
+        lambda: undo_highlight_jump_position(view),
         settings.get('duration') * 1000,
     )
 
 
-def erase_regions(view, region_key):
-    # type: (sublime.View, str) -> None
-    view.erase_regions(region_key)
+def undo_highlight_jump_position(view: sublime.View) -> None:
+    view.erase_regions(HIGHLIGHT_REGION_KEY)
+    if undo_task := State['resurrect_tasks'].get(view):
+        undo_task()
 
 
-def dehighlight_linter_errors(view, touching_errors, settings):
-    # type: (...) -> Task
+def dehighlight_linter_errors(
+    view: sublime.View, touching_errors: list[persist.LintError]
+) -> Task:
     touching_error_uids = {error['uid'] for error in touching_errors}
 
     touching_regions = []
@@ -314,33 +310,9 @@ def dehighlight_linter_errors(view, touching_errors, settings):
         # highlight_view.erase_view_region(view, key)
         # highlight_view.draw_squiggle_invisible(view, key, regions)
 
-    return (resurrect_regions, view, touching_regions)
+    return partial(resurrect_regions, view, touching_regions)
 
 
-def resurrect_regions(view, touching_regions):
-    try:
-        State['resurrect_tasks'].remove((resurrect_regions, view, touching_regions))
-    except ValueError:
-        pass
+def resurrect_regions(view: sublime.View, touching_regions) -> None:
     for key, regions in touching_regions:
         highlight_view.redraw_squiggle(view, key, regions)
-
-
-THROTTLED_CACHE = {}
-THROTTLED_LOCK = threading.Lock()
-
-
-def throttled(fn, *args, **kwargs):
-    # type: (...) -> Callable[[], None]
-    token = (fn,)
-    action = partial(fn, *args, **kwargs)
-    with THROTTLED_LOCK:
-        THROTTLED_CACHE[token] = action
-
-    def task():
-        with THROTTLED_LOCK:
-            ok = THROTTLED_CACHE[token] == action
-        if ok:
-            action()
-
-    return task
