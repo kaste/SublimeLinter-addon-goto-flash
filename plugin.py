@@ -217,6 +217,10 @@ def cursor_jumped(view, cursor):
             highlight_view.update_phantoms(view, phantoms)
             State["just_drawn_a_phantom"].add(view.id())
             highlight_view.State['views_without_phantoms'].discard(view.id())
+        else:
+            highlight_view.update_phantoms(view, phantoms)
+            State["just_drawn_a_phantom"].discard(view.id())
+            highlight_view.State['views_without_phantoms'].add(view.id())
 
     if currently_quiet or not settings.get('only_if_quiet'):
         try:
